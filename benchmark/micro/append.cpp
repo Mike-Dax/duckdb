@@ -229,8 +229,36 @@ static int32_t GenerateI32InputValue(idx_t row_idx, idx_t chunk_idx) {
 	return static_cast<int32_t>(raw);
 }
 
+static int16_t GenerateI16InputValue(idx_t row_idx, idx_t chunk_idx) {
+	const auto raw = static_cast<int32_t>(((row_idx + 1) * 541 + (chunk_idx + 1) * 37) % 60000) - 30000;
+	return static_cast<int16_t>(raw);
+}
+
+static int8_t GenerateI8InputValue(idx_t row_idx, idx_t chunk_idx) {
+	const auto raw = static_cast<int16_t>(((row_idx + 1) * 31 + (chunk_idx + 1) * 7) % 200) - 100;
+	return static_cast<int8_t>(raw);
+}
+
+static uint32_t GenerateU32InputValue(idx_t row_idx, idx_t chunk_idx) {
+	const auto raw = static_cast<uint64_t>(row_idx + 1) * 2654435761ULL +
+	                 static_cast<uint64_t>(chunk_idx + 1) * 2246822519ULL;
+	return static_cast<uint32_t>(raw);
+}
+
+static uint16_t GenerateU16InputValue(idx_t row_idx, idx_t chunk_idx) {
+	return static_cast<uint16_t>(GenerateU32InputValue(row_idx, chunk_idx));
+}
+
+static uint8_t GenerateU8InputValue(idx_t row_idx, idx_t chunk_idx) {
+	return static_cast<uint8_t>(GenerateU32InputValue(row_idx, chunk_idx));
+}
+
 static float GenerateF32InputValue(idx_t row_idx, idx_t chunk_idx) {
 	return static_cast<float>(GenerateI32InputValue(row_idx, chunk_idx)) / 17.0f;
+}
+
+static double GenerateF64InputValue(idx_t row_idx, idx_t chunk_idx) {
+	return static_cast<double>(GenerateI32InputValue(row_idx, chunk_idx)) / 17.0;
 }
 
 template <class T>
@@ -267,8 +295,8 @@ static void PrepareAppendDataChunkBenchmarkState(DuckDBBenchmarkState *state_p, 
 
 	state->chunks.clear();
 	vector<LogicalType> types {logical_type};
-	for (idx_t row_offset = 0; row_offset < 100000; row_offset += ROWS_PER_CHUNK) {
-		const auto remaining = 100000 - row_offset;
+	for (idx_t row_offset = 0; row_offset < 1048576; row_offset += ROWS_PER_CHUNK) {
+		const auto remaining = 1048576 - row_offset;
 		const auto cardinality = remaining < ROWS_PER_CHUNK ? remaining : ROWS_PER_CHUNK;
 		const auto chunk_idx = row_offset / ROWS_PER_CHUNK;
 		auto chunk = make_uniq<DataChunk>();
@@ -332,7 +360,7 @@ static void ResetAppendDataChunkBenchmarkState(DuckDBBenchmarkState *state_p, co
 		return string();                                                                                               \
 	}                                                                                                                  \
 	string BenchmarkInfo() override {                                                                                  \
-		return "Append 100K values from prebuilt, 1-column DataChunks of " + string(SQL_TYPE) + " " +                  \
+		return "Append 1048576 values from prebuilt, 1-column DataChunks of " + string(SQL_TYPE) + " " +               \
 		       string(DESCRIPTION);                                                                                    \
 	}                                                                                                                  \
 	FINISH_BENCHMARK(NAME)
@@ -342,6 +370,27 @@ DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI32AllValid1ColFlushEv
                                            "INTEGER", GenerateI32InputValue, false, 128, true,
                                            "(all valid, 128 rows per DataChunk, flushing after every 128 rows)")
 
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkU32AllValid1Col, "[append][append_data_chunk]", uint32_t,
+                                           LogicalType::UINTEGER, "UINTEGER", GenerateU32InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkU32WithNulls1Col, "[append][append_data_chunk]", uint32_t,
+                                           LogicalType::UINTEGER, "UINTEGER", GenerateU32InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkU16AllValid1Col, "[append][append_data_chunk]", uint16_t,
+                                           LogicalType::USMALLINT, "USMALLINT", GenerateU16InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkU16WithNulls1Col, "[append][append_data_chunk]", uint16_t,
+                                           LogicalType::USMALLINT, "USMALLINT", GenerateU16InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkU8AllValid1Col, "[append][append_data_chunk]", uint8_t,
+                                           LogicalType::UTINYINT, "UTINYINT", GenerateU8InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkU8WithNulls1Col, "[append][append_data_chunk]", uint8_t,
+                                           LogicalType::UTINYINT, "UTINYINT", GenerateU8InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
 DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI32AllValid1Col, "[append][append_data_chunk]", int32_t,
                                            LogicalType::INTEGER, "INTEGER", GenerateI32InputValue, false,
                                            STANDARD_VECTOR_SIZE, false, "(all valid)")
@@ -349,9 +398,30 @@ DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI32WithNulls1Col, "[ap
                                            LogicalType::INTEGER, "INTEGER", GenerateI32InputValue, true,
                                            STANDARD_VECTOR_SIZE, false, "(with nulls)")
 
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI16AllValid1Col, "[append][append_data_chunk]", int16_t,
+                                           LogicalType::SMALLINT, "SMALLINT", GenerateI16InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI16WithNulls1Col, "[append][append_data_chunk]", int16_t,
+                                           LogicalType::SMALLINT, "SMALLINT", GenerateI16InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI8AllValid1Col, "[append][append_data_chunk]", int8_t,
+                                           LogicalType::TINYINT, "TINYINT", GenerateI8InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI8WithNulls1Col, "[append][append_data_chunk]", int8_t,
+                                           LogicalType::TINYINT, "TINYINT", GenerateI8InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
 DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkF32AllValid1Col, "[append][append_data_chunk]", float,
                                            LogicalType::FLOAT, "FLOAT", GenerateF32InputValue, false,
                                            STANDARD_VECTOR_SIZE, false, "(all valid)")
 DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkF32WithNulls1Col, "[append][append_data_chunk]", float,
                                            LogicalType::FLOAT, "FLOAT", GenerateF32InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkF64AllValid1Col, "[append][append_data_chunk]", double,
+                                           LogicalType::DOUBLE, "DOUBLE", GenerateF64InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkF64WithNulls1Col, "[append][append_data_chunk]", double,
+                                           LogicalType::DOUBLE, "DOUBLE", GenerateF64InputValue, true,
                                            STANDARD_VECTOR_SIZE, false, "(with nulls)")
