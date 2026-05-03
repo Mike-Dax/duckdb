@@ -229,6 +229,10 @@ static int32_t GenerateI32InputValue(idx_t row_idx, idx_t chunk_idx) {
 	return static_cast<int32_t>(raw);
 }
 
+static float GenerateF32InputValue(idx_t row_idx, idx_t chunk_idx) {
+	return static_cast<float>(GenerateI32InputValue(row_idx, chunk_idx)) / 17.0f;
+}
+
 template <class T>
 struct AppendDataChunkBenchmarkState : public DuckDBBenchmarkState {
 	AppendDataChunkBenchmarkState(string path) : DuckDBBenchmarkState(std::move(path)) {
@@ -337,3 +341,17 @@ DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI32AllValid1ColFlushEv
                                            "[append][append_data_chunk][flush]", int32_t, LogicalType::INTEGER,
                                            "INTEGER", GenerateI32InputValue, false, 128, true,
                                            "(all valid, 128 rows per DataChunk, flushing after every 128 rows)")
+
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI32AllValid1Col, "[append][append_data_chunk]", int32_t,
+                                           LogicalType::INTEGER, "INTEGER", GenerateI32InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkI32WithNulls1Col, "[append][append_data_chunk]", int32_t,
+                                           LogicalType::INTEGER, "INTEGER", GenerateI32InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
+
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkF32AllValid1Col, "[append][append_data_chunk]", float,
+                                           LogicalType::FLOAT, "FLOAT", GenerateF32InputValue, false,
+                                           STANDARD_VECTOR_SIZE, false, "(all valid)")
+DEFINE_APPEND_DATA_CHUNK_NUMERIC_BENCHMARK(AppendDataChunkF32WithNulls1Col, "[append][append_data_chunk]", float,
+                                           LogicalType::FLOAT, "FLOAT", GenerateF32InputValue, true,
+                                           STANDARD_VECTOR_SIZE, false, "(with nulls)")
